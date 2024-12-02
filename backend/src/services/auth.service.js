@@ -18,6 +18,11 @@ const registerUser = async (userName, email, password) => {
     }
 
     // console.log(`existedUser below`)
+    const pendingRole = await prisma.role.upsert({
+      where: { roleName: 'pending' },
+      update: {}, // No update required
+      create: { roleName: 'pending' },
+    });
 
     const saltRound = 10;
 
@@ -28,12 +33,18 @@ const registerUser = async (userName, email, password) => {
         userName,
         email,
         password: hashedPassword,
+        roles: {
+          connect: { id: pendingRole.id },
+        },
+      },
+      include: {
+        roles: true, // Include related roles in the response
       },
     });
 
     return newUser;
   } catch (error) {
-    console.error(`Error in registerUser: ${error.message}`,error);
+    console.error(`Error in registerUser: ${error.message}`, error);
     throw new ApiError(error.message || "Internal Server Error", 500);
   }
 };
@@ -73,7 +84,12 @@ const loginUser = async (email, password) => {
         id: true,
         userName: true,
         email: true,
-      },
+        roles: {
+          select: {
+            roleName: true, // Fetch only the role name
+          },
+        },
+      }
     });
 
     return { loginUserDetails, accessToken, refreshToken };
